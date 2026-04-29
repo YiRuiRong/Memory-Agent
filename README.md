@@ -189,6 +189,44 @@ Agent 会触发报告生成流程，切换到 `prompts/report_prompt.txt`，并�
 
 ## 核心机制
 
+### 记忆系统四层架构
+
+记忆系统主要由 `agent/memory_system.py` 实现。代码中定义了 L1/L2/L3/L4 四层长期记忆，同时还存在一个辅助文件 `memory/memory_management_sop.md`。这个辅助文件在代码里对应 `L0_PATH`，用于记录记忆管理规则，但它不是四层记忆之一。
+
+四层记忆的真实路径和职责如下：
+
+| 层级 | 文件或目录 | 代码常量 | 实际职责 |
+| --- | --- | --- | --- |
+| L1 | `memory/global_mem_insight.txt` | `L1_PATH` | 短小的全局记忆索引，会通过 `get_global_memory()` 常驻追加到 system prompt。它不适合存放大段事实，主要用于指向 L2/L3 中更详细的内容。 |
+| L2 | `memory/global_mem.txt` | `L2_PATH` | 已验证、相对稳定的长期事实库，例如项目事实、配置、路径、稳定约束、用户明确偏好。默认不会全文注入模型，只通过 L1 提供索引提示。 |
+| L3 | `memory/sop_library.md` | `L3_PATH` | 可复用 SOP、流程、排查方法和集成说明。适合保存“以后遇到同类任务怎么做”的过程性知识。 |
+| L4 | `memory/L4_raw_sessions/` | `L4_DIR` | 会话与日志归档目录。当前会话写入 `current_session.log`，归档结果追加到 `all_histories.txt`，默认不会注入模型上下文。 |
+
+初始化发生在 `ensure_memory_files()`：它会创建 `memory/`、`memory/L4_raw_sessions/`，并在文件缺失时写入 L1/L2/L3/L0 的默认内容，同时创建 `file_access_stats.json`、`current_session.log` 和 `all_histories.txt`。
+
+运行时还有一层进程内工作记忆，由 `AgentMemoryRuntime` 维护，不直接等同于 L1-L4。它保存当前轮次的 `history_info`、`key_info`、`related_sop`、工具结果和候选记忆。每次模型调用前，`agent/tools/middleware.py` 中的 `log_before_model` 会调用 `build_anchor_state_update()`，把一段 `<runtime_memory>` 锚点插入消息列表。这段锚点包含最近会话摘要、当前轮次、短期 checkpoint 和相关 SOP 提示。
+
+长期记忆沉淀链路如下：
+
+```text
+用户输入
+    -> ReactAgent.execute_stream()
+    -> memory.record_user_turn()
+    -> 工具调用被 monitor_tool 捕获
+    -> memory.record_tool_result()
+    -> 本轮结束后 turn_end_callback()
+    -> collect_memory_candidates()
+    -> should_distill_memory()
+    -> start_long_term_update()
+    -> classify_memory_candidate()
+    -> apply_memory_update()
+    -> 写入 L1/L2/L3，或拒绝写入
+```
+
+候选记忆不会无条件写入。`classify_memory_candidate()` 会先过滤疑似 secret、token、密码、密钥，以及天气、位置、用户 ID、月份、外部记录等易变工具结果。通过校验后，内容才会按规则进入 L1、L2 或 L3；如果写入 L2/L3 成功，代码还会自动向 L1 写入一条指向 `memory/global_mem.txt` 或 `memory/sop_library.md` 的索引。
+
+L4 归档由 `archive_sessions()` 处理。它会扫描 `memory/L4_raw_sessions/current_session.log` 和 `logs/*.log` 中的 `[USER]`、`[Agent]` 摘要行，把符合条件的历史追加到 `memory/L4_raw_sessions/all_histories.txt`。默认会跳过最近 2 小时内仍在写入的日志，除非当前会话被 `finalize_session_log()` 标记完成，或 `current_session.log` 超过 `CURRENT_SESSION_MAX_BYTES`。
+
 ### RAG 知识库流程
 
 知识库构建流程：
