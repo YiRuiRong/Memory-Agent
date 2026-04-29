@@ -1,0 +1,99 @@
+# Python bytecode/cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Python packaging/build artifacts
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+*.local
+config/*.local.yml
+config/*.local.yaml
+config/*.secret.yml
+config/*.secret.yaml
+
+# Test, lint, type-check and coverage caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.pyre/
+.ruff_cache/
+.hypothesis/
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE/editor files
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# OS metadata
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+*.temp
+*.bak
+
+# RAG/vector database runtime artifacts
+chroma_db/
+**/chroma_db/
+md5.text
+*.sqlite3-shm
+*.sqlite3-wal
+*.sqlite-shm
+*.sqlite-wal
+
+# Agent memory runtime artifacts
+memory/L4_raw_sessions/
+memory/file_access_stats.json
+memory/global_mem.txt
+memory/global_mem_insight.txt
+
+# Generated outputs
+outputs/
+reports/
+tmp/
+temp/
+
+# Large/local ML artifacts
+model_cache/
+.model_cache/
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.onnx
